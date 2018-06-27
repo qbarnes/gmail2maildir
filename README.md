@@ -27,5 +27,6 @@ On the next page, check "Apply the label".  Select "Choose label..."
 then "New label".  In the "Please enter a new label name:", enter
 `dnl` then click "Create".
 
-You may wish to set up a cron job or other method to run the
-`gmail2maildir` tool regularly.
+Running `gmail2maildir` will only download the labeled mails and
+exit.  If you'd like the tool to keep running and downloading, use
+the `--poll` option with a number of seconds to wait between polls.

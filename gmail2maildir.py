@@ -13,6 +13,7 @@ import sys
 import os
 import errno
 import base64
+import time
 import email
 
 from pathlib import Path, PurePath
@@ -27,15 +28,23 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
+Verbose = False
+
+def verbose_eprint(*args, **kwargs):
+    global Verbose
+    if Verbose:
+        print(*args, file=sys.stderr, **kwargs)
+
+
 # Can't use exist_ok arg for Path.mkdir.  Only added in v3.
 def mkdir_exists_ok(path, mode, parents):
     try:
         path.mkdir(mode, parents)
     except OSError as e:
-	if e.errno == errno.EEXIST:
-	    pass
-	else:
-	    exit("mkdir of '%s' failed." % path)
+        if e.errno == errno.EEXIST:
+            pass
+        else:
+            exit("mkdir of '%s' failed." % path)
 
 
 def SetupOptionParser(app_config_dir, maildir_path):
@@ -72,6 +81,14 @@ def SetupOptionParser(app_config_dir, maildir_path):
                     default='me',
                     dest='user_id',
                     help="user id's mail to download")
+    parser.add_option('--poll',
+                    type='float',
+                    dest='poll',
+                    help="seconds between polling gmail for mail")
+    parser.add_option('--verbose',
+                    action='store_true',
+                    dest='verbose',
+                    help="enable verbose messages")
     return parser
 
 
@@ -90,47 +107,7 @@ def gmail_api_setup(scope, client_secret_file, credentials_file):
     return build('gmail', 'v1', http=creds.authorize(Http()))
 
 
-def main(argv):
-    home_env = os.getenv('HOME')
-
-    if home_env:
-        home = Path(home_env)
-        app_config_dir = home / '.config' / 'gmail2maildir'
-    else:
-        app_config_dir = PurePath('')
-
-    maildir_env = os.getenv('MAILDIR')
-
-    if maildir_env:
-        maildir_path = Path(maildir_env)
-    else:
-        if home_env:
-            maildir_path = home / 'Mail' / 'Inbox'
-        else:
-            maildir_path = PurePath('')
-
-    options_parser = SetupOptionParser(app_config_dir, maildir_path)
-    (options, args) = options_parser.parse_args()
-
-    maildir_tmp = options.maildir / 'tmp'
-    maildir_new = options.maildir / 'new'
-    maildir_cur = options.maildir / 'cur'
-
-    mkdir_exists_ok(maildir_tmp, 0o700, True)
-    mkdir_exists_ok(maildir_new, 0o700, True)
-    mkdir_exists_ok(maildir_cur, 0o700, True)
-
-#    if options.refresh_token:
-#        RequireOptions(options, 'client_id', 'client_secret')
-
-#    print('app_config_path = %s' % app_config_dir)
-#    print('maildir_top = %s' % options.maildir)
-#    print('credentials_file = %s' % options.credentials_file)
-#    print('client_secret_file = %s' % options.client_secret_file)
-#    print('maildir_tmp = %s' % maildir_tmp)
-#    print('maildir_new = %s' % maildir_new)
-#    exit(0)
-
+def gmail2maildir(options):
     #
     # Setup the Gmail services for readonly and read/write access methods.
     # Do modify first so that when the gAPI opens a browser connection to
@@ -153,10 +130,10 @@ def main(argv):
     try:
         download_label_id = \
             next(x for x in labels \
-		if x['name'] == options.download_label_name)['id']
+                if x['name'] == options.download_label_name)['id']
     except StopIteration as err:
         exit("Could not find download label '%s'." % \
-	        options.download_label_name)
+                options.download_label_name)
 
     #
     # Find all mails with the download label.
@@ -168,16 +145,19 @@ def main(argv):
 
     messages = results.get('messages', [])
 
-    if not messages:
-        print("No messages found with label '%s'." % \
-	        options.download_label_name)
-        exit(0)
+#    if not messages:
+#        print("No messages found with label '%s'." % \
+#                options.download_label_name)
+#        exit(0)
 
     #exit(0)
 
     #
     # Download mails with the download label and remove the label from the mail.
     #
+
+    maildir_tmp = options.maildir / 'tmp'
+    maildir_new = options.maildir / 'new'
 
     for msg in messages:
         msg_id = msg.get('id')
@@ -187,26 +167,93 @@ def main(argv):
         mailfn_new = maildir_new / mailfn
 
         msg = service_ro.users().messages().get(userId=options.user_id,\
-	        id=msg_id,format='raw').execute()
+                id=msg_id,format='raw').execute()
 
         fo = open(str(mailfn_tmp), "wx")
         fo.write(base64.urlsafe_b64decode(\
-	        msg['raw'].encode('ASCII')).replace('\r', ''))
+                msg['raw'].encode('ASCII')).replace('\r', ''))
         fo.close()
         mailfn_tmp.rename(mailfn_new)
 
-	rlabels = []
-	if options.archive_mail:
-	    rlabels += ['INBOX']
+        rlabels = []
+        if options.archive_mail:
+            rlabels += ['INBOX']
 
-	if not options.keep_label:
-	    rlabels += [download_label_id]
+        if not options.keep_label:
+            rlabels += [download_label_id]
 
-	if rlabels:
-	    upd_body = {'removeLabelIds': rlabels, 'addLabelIds': []}
+        if rlabels:
+            upd_body = {'removeLabelIds': rlabels, 'addLabelIds': []}
             service_mod.users().messages().modify(userId=options.user_id,\
-	            id=msg_id, body=upd_body).execute()
+                    id=msg_id, body=upd_body).execute()
 
+    return len(messages)
+
+
+def main(argv):
+    global Verbose
+
+    home_env = os.getenv('HOME')
+
+    if home_env:
+        home = Path(home_env)
+        app_config_dir = home / '.config' / 'gmail2maildir'
+    else:
+        app_config_dir = PurePath('')
+
+    maildir_env = os.getenv('MAILDIR')
+
+    if maildir_env:
+        maildir_path = Path(maildir_env)
+    else:
+        if home_env:
+            maildir_path = home / 'Mail' / 'Inbox'
+        else:
+            maildir_path = PurePath('')
+
+    options_parser = SetupOptionParser(app_config_dir, maildir_path)
+    (options, args) = options_parser.parse_args()
+
+    Verbose = options.verbose
+
+    maildir_tmp = options.maildir / 'tmp'
+    maildir_new = options.maildir / 'new'
+    maildir_cur = options.maildir / 'cur'
+
+    mkdir_exists_ok(maildir_tmp, 0o700, True)
+    mkdir_exists_ok(maildir_new, 0o700, True)
+    mkdir_exists_ok(maildir_cur, 0o700, True)
+
+#    if options.refresh_token:
+#        RequireOptions(options, 'client_id', 'client_secret')
+
+#    print('app_config_path = %s' % app_config_dir)
+#    print('maildir_top = %s' % options.maildir)
+#    print('credentials_file = %s' % options.credentials_file)
+#    print('client_secret_file = %s' % options.client_secret_file)
+#    print('maildir_tmp = %s' % maildir_tmp)
+#    print('maildir_new = %s' % maildir_new)
+#    exit(0)
+
+    if options.poll:
+        if options.poll <= 0:
+            exit("poll parameter must be greater than 0.")
+
+        t_start = time.time()
+        while True:
+            try:
+                verbose_eprint("polling...")
+                msg_cnt = gmail2maildir(options)
+                if msg_cnt:
+                    verbose_eprint("downloaded %d messages." % msg_cnt)
+                sleep_time = max(0, options.poll - (time.time() - t_start))
+                verbose_eprint("sleeping for %f seconds." % sleep_time)
+                time.sleep(sleep_time)
+                t_start += options.poll
+            except KeyboardInterrupt:
+                break
+    else:
+        gmail2maildir(options)
 
 if __name__ == '__main__':
     main(sys.argv)
