@@ -20,7 +20,8 @@ for.  Go to your gmail account and select "Settings" under the gear
 icon.  Select the "Filters and Blocked Addresses" tab then click on
 "Create a new filter" link.  In the "From" box, enter something like
 `-(slkdjflksjdfksdjflkdsjfl@foobar.com)` then click "Create filter
-with this search".
+with this search".  The idea is to create a negative filter for a
+garbage address string which will hopefully never be matched.
 
 On the next page, check "Apply the label".  Select "Choose label..."
 then "New label".  In the "Please enter a new label name:", enter
