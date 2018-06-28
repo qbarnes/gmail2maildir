@@ -14,10 +14,10 @@ import os
 import errno
 import base64
 import time
+import argparse
 import email
 
 from pathlib import Path, PurePath
-from optparse import OptionParser
 from apiclient import errors
 from apiclient.discovery import build
 from httplib2 import Http
@@ -47,55 +47,50 @@ def mkdir_exists_ok(path, mode, parents):
             exit("mkdir of '%s' failed." % path)
 
 
-def SetupOptionParser(app_config_dir, maildir_path):
+def SetupArgParser(app_config_dir, maildir_path):
     # Usage message is the module's docstring.
-    parser = OptionParser(usage=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__)
 
-    parser.add_option('--label',
-                    default='dnl',
-                    dest='download_label_name',
-                    help="label used to identify mails to download")
-    parser.add_option('--keep-label',
-                    default=False,
-                    action='store_true',
-                    dest='keep_label',
-                    help="don't remove label from mail after download")
-    parser.add_option('--archive-mail',
-                    default=False,
-                    action='store_true',
-                    dest='archive_mail',
-                    help="archive mail after download")
-    parser.add_option('--maildir',
-                    default=maildir_path,
-                    dest='maildir',
-                    help="path to directory in maildir format")
-    parser.add_option('--client-secret',
-                    default=app_config_dir / 'client_secret.json',
-                    dest='client_secret_file',
-                    help="Client_secret file")
-    parser.add_option('--credentials',
-                    default=app_config_dir / 'credentials.json',
-                    dest='credentials_file',
-                    help="credentials file")
-    parser.add_option('--user-id',
-                    default='me',
-                    dest='user_id',
-                    help="user id's mail to download")
-    parser.add_option('--poll',
-                    type='float',
-                    dest='poll',
-                    help="seconds between polling gmail for mail")
-    parser.add_option('--verbose',
-                    action='store_true',
-                    dest='verbose',
-                    help="enable verbose messages")
+    parser.add_argument('-a', '--archive-mail',
+                        default=False,
+                        action='store_true',
+                        dest='archive_mail',
+                        help="archive mail after download")
+    parser.add_argument('-c', '--credentials',
+                        default=app_config_dir / 'credentials.json',
+                        dest='credentials_file',
+                        help="credentials file")
+    parser.add_argument('-k', '--keep-label',
+                        default=False,
+                        action='store_true',
+                        dest='keep_label',
+                        help="don't remove label from mail after download")
+    parser.add_argument('-l', '--label',
+                        default='dnl',
+                        dest='label_name',
+                        help="label used to identify mails to download")
+    parser.add_argument('-p', '--poll',
+                        type=float,
+                        dest='poll',
+                        help="seconds between polling gmail for mail")
+    parser.add_argument('-s', '--client-secret',
+                        default=app_config_dir / 'client_secret.json',
+                        dest='client_secret_file',
+                        help="Client_secret file")
+    parser.add_argument('-u', '--user-id',
+                        default='me',
+                        dest='user_id',
+                        help="user id's mail to download")
+    parser.add_argument('-v', '--verbose',
+                        action='store_true',
+                        dest='verbose',
+                        help="enable verbose messages")
+    parser.add_argument('maildir',
+                        nargs=1,
+                        type=Path,
+                        default=maildir_path,
+                        help="path to directory in maildir format")
     return parser
-
-
-def RequireOptions(options, *args):
-    missing = [arg for arg in args if getattr(options, arg) is None]
-    if missing:
-        exit('Missing options: %s' % ' '.join(missing))
 
 
 def gmail_api_setup(scope, client_secret_file, credentials_file):
@@ -107,7 +102,7 @@ def gmail_api_setup(scope, client_secret_file, credentials_file):
     return build('gmail', 'v1', http=creds.authorize(Http()))
 
 
-def gmail2maildir(options):
+def gmail2maildir(args):
     #
     # Setup the Gmail services for readonly and read/write access methods.
     # Do modify first so that when the gAPI opens a browser connection to
@@ -116,38 +111,38 @@ def gmail2maildir(options):
 
     gapi_url = 'https://www.googleapis.com/auth/'
     service_mod = gmail_api_setup(gapi_url + 'gmail.modify',
-                        options.client_secret_file, options.credentials_file)
+                        args.client_secret_file, args.credentials_file)
     service_ro  = gmail_api_setup(gapi_url + 'gmail.readonly',
-                        options.client_secret_file, options.credentials_file)
+                        args.client_secret_file, args.credentials_file)
 
     #
     # Find our special download label.
     #
 
-    results = service_ro.users().labels().list(userId=options.user_id).execute()
+    results = service_ro.users().labels().list(userId=args.user_id).execute()
     labels = results.get('labels', [])
 
     try:
         download_label_id = \
             next(x for x in labels \
-                if x['name'] == options.download_label_name)['id']
+                if x['name'] == args.label_name)['id']
     except StopIteration as err:
         exit("Could not find download label '%s'." % \
-                options.download_label_name)
+                args.label_name)
 
     #
     # Find all mails with the download label.
     #
 
     # Should I select messages with the label only if they're in INBOX?
-    results = service_ro.users().messages().list(userId=options.user_id,\
+    results = service_ro.users().messages().list(userId=args.user_id,\
         labelIds=[download_label_id],maxResults=500).execute()
 
     messages = results.get('messages', [])
 
 #    if not messages:
 #        print("No messages found with label '%s'." % \
-#                options.download_label_name)
+#                args.label_name)
 #        exit(0)
 
     #exit(0)
@@ -156,17 +151,17 @@ def gmail2maildir(options):
     # Download mails with the download label and remove the label from the mail.
     #
 
-    maildir_tmp = options.maildir / 'tmp'
-    maildir_new = options.maildir / 'new'
+    maildir_tmp = args.maildir[0] / 'tmp'
+    maildir_new = args.maildir[0] / 'new'
 
     for msg in messages:
         msg_id = msg.get('id')
 
-        mailfn = Path(options.user_id + "_" + msg_id)
+        mailfn = Path(args.user_id + "_" + msg_id)
         mailfn_tmp = maildir_tmp / mailfn
         mailfn_new = maildir_new / mailfn
 
-        msg = service_ro.users().messages().get(userId=options.user_id,\
+        msg = service_ro.users().messages().get(userId=args.user_id,\
                 id=msg_id,format='raw').execute()
 
         fo = open(str(mailfn_tmp), "wx")
@@ -176,15 +171,15 @@ def gmail2maildir(options):
         mailfn_tmp.rename(mailfn_new)
 
         rlabels = []
-        if options.archive_mail:
+        if args.archive_mail:
             rlabels += ['INBOX']
 
-        if not options.keep_label:
+        if not args.keep_label:
             rlabels += [download_label_id]
 
         if rlabels:
             upd_body = {'removeLabelIds': rlabels, 'addLabelIds': []}
-            service_mod.users().messages().modify(userId=options.user_id,\
+            service_mod.users().messages().modify(userId=args.user_id,\
                     id=msg_id, body=upd_body).execute()
 
     return len(messages)
@@ -211,49 +206,46 @@ def main(argv):
         else:
             maildir_path = PurePath('')
 
-    options_parser = SetupOptionParser(app_config_dir, maildir_path)
-    (options, args) = options_parser.parse_args()
+    parser = SetupArgParser(app_config_dir, maildir_path)
+    args = parser.parse_args()
 
-    Verbose = options.verbose
+    Verbose = args.verbose
 
-    maildir_tmp = options.maildir / 'tmp'
-    maildir_new = options.maildir / 'new'
-    maildir_cur = options.maildir / 'cur'
+    maildir_tmp = args.maildir[0] / 'tmp'
+    maildir_new = args.maildir[0] / 'new'
+    maildir_cur = args.maildir[0] / 'cur'
 
     mkdir_exists_ok(maildir_tmp, 0o700, True)
     mkdir_exists_ok(maildir_new, 0o700, True)
     mkdir_exists_ok(maildir_cur, 0o700, True)
 
-#    if options.refresh_token:
-#        RequireOptions(options, 'client_id', 'client_secret')
-
 #    print('app_config_path = %s' % app_config_dir)
-#    print('maildir_top = %s' % options.maildir)
-#    print('credentials_file = %s' % options.credentials_file)
-#    print('client_secret_file = %s' % options.client_secret_file)
+#    print('maildir_top = %s' % args.maildir)
+#    print('credentials_file = %s' % args.credentials_file)
+#    print('client_secret_file = %s' % args.client_secret_file)
 #    print('maildir_tmp = %s' % maildir_tmp)
 #    print('maildir_new = %s' % maildir_new)
 #    exit(0)
 
-    if options.poll:
-        if options.poll <= 0:
+    if args.poll:
+        if args.poll <= 0:
             exit("poll parameter must be greater than 0.")
 
         t_start = time.time()
         while True:
             try:
                 verbose_eprint("polling...")
-                msg_cnt = gmail2maildir(options)
+                msg_cnt = gmail2maildir(args)
                 if msg_cnt:
                     verbose_eprint("downloaded %d messages." % msg_cnt)
-                sleep_time = max(0, options.poll - (time.time() - t_start))
+                sleep_time = max(0, args.poll - (time.time() - t_start))
                 verbose_eprint("sleeping for %f seconds." % sleep_time)
                 time.sleep(sleep_time)
-                t_start += options.poll
+                t_start += args.poll
             except KeyboardInterrupt:
                 break
     else:
-        gmail2maildir(options)
+        gmail2maildir(args)
 
 if __name__ == '__main__':
     main(sys.argv)
