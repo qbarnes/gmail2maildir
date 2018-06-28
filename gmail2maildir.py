@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python2
 #
 # Can't use python3 since no google api client python package available for it.
 #
