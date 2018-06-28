@@ -11,6 +11,7 @@ from __future__ import print_function
 
 import sys
 import os
+import signal
 import errno
 import base64
 import time
@@ -23,6 +24,13 @@ from apiclient.discovery import build
 from httplib2 import Http
 from oauth2client import file, client, tools
 
+
+Signal = 0
+
+# For SIGHUP, we use it to get out of syscalls and then ignore it.
+def sig_handle_hup(signum, frame):
+    global Signal
+    Signal = signum
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -186,6 +194,7 @@ def gmail2maildir(args):
 
 
 def main(argv):
+    global Signal
     global Verbose
 
     home_env = os.getenv('HOME')
@@ -231,6 +240,8 @@ def main(argv):
         if args.poll <= 0:
             exit("poll parameter must be greater than 0.")
 
+        signal.signal(signal.SIGHUP, sig_handle_hup)
+
         t_start = time.time()
         while True:
             try:
@@ -241,7 +252,11 @@ def main(argv):
                 sleep_time = max(0, args.poll - (time.time() - t_start))
                 verbose_eprint("sleeping for %f seconds." % sleep_time)
                 time.sleep(sleep_time)
-                t_start += args.poll
+                if Signal == 0:
+                    t_start += args.poll
+                else:
+                    t_start = time.time()
+                    Signal = 0
             except KeyboardInterrupt:
                 break
     else:
