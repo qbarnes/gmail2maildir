@@ -93,8 +93,8 @@ $ ./gmail2maildir
 ```
 
 Running the tool should open a browser window asking you to "Choose
-an account".  Select your @oath.com account and on the next page
-click on the "ALLOW" botton.
+an account".  Select your account and on the next page click on the
+"ALLOW" button.
 
 Back on the shell running `gmail2maildir`, you should see the message
 "Authentication successful." and the tool exits.  You should now have
