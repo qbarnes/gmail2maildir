@@ -89,7 +89,7 @@ def SetupArgParser(app_config_dir, maildir_path):
                         dest='keep_label',
                         help="don't remove label from mail after download")
     parser.add_argument('-l', '--label',
-                        default='dnl',
+                        default='_dnl_',
                         dest='label_name',
                         help="label used to identify mails to download")
     parser.add_argument('-p', '--poll',

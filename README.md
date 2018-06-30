@@ -7,7 +7,7 @@ see the available options.
 
 The tool works by finding mails with a label, downloading those
 emails, then removing the label when the download is successful.
-The default label is `dnl`.
+The default label is `_dnl_`.
 
 The downloaded emails will be placed into a Maildir directory
 hierarchy specified by the `--maildir=MAILDIR` option.  If none is
@@ -25,7 +25,7 @@ garbage address string which will hopefully never be matched.
 
 On the next page, check "Apply the label".  Select "Choose label..."
 then "New label".  In the "Please enter a new label name:", enter
-`dnl` then click "Create".
+`_dnl_` then click "Create".
 
 Running `gmail2maildir` will only download the labeled mails and
 exit.  If you'd like the tool to keep running and downloading, use
