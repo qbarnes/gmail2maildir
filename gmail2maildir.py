@@ -109,7 +109,7 @@ def SetupArgParser(app_config_dir, maildir_path):
                         dest='verbose',
                         help="enable verbose messages")
     parser.add_argument('maildir',
-                        nargs=1,
+                        nargs='?',
                         type=Path,
                         default=maildir_path,
                         help="path to directory in maildir format")
@@ -174,8 +174,8 @@ def gmail2maildir(args):
     # Download mails with the download label and remove the label from the mail.
     #
 
-    maildir_tmp = args.maildir[0] / 'tmp'
-    maildir_new = args.maildir[0] / 'new'
+    maildir_tmp = args.maildir / 'tmp'
+    maildir_new = args.maildir / 'new'
 
     for msg in messages:
         msg_id = msg.get('id')
@@ -235,9 +235,9 @@ def main(argv):
 
     Verbose = args.verbose
 
-    maildir_tmp = args.maildir[0] / 'tmp'
-    maildir_new = args.maildir[0] / 'new'
-    maildir_cur = args.maildir[0] / 'cur'
+    maildir_tmp = args.maildir / 'tmp'
+    maildir_new = args.maildir / 'new'
+    maildir_cur = args.maildir / 'cur'
 
     mkdir_exists_ok(maildir_tmp, 0o700, True)
     mkdir_exists_ok(maildir_new, 0o700, True)
