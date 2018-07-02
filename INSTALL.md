@@ -92,9 +92,14 @@ $ make
 $ ./gmail2maildir
 ```
 
-Running the tool should open a browser window asking you to "Choose
-an account".  Select your account and on the next page click on the
-"ALLOW" button.
+Running the tool should open one of two browser windows.
+
+If you have multiple accounts, the first window will prompt you to
+"Choose an account".  Select the account you will use with this tool
+and continue to the directions for only having one account.
+
+If you only have one account, the page will ask you to approve the
+tool's access to your gmail account.  Click "Allow".
 
 Back on the shell running `gmail2maildir`, you should see the message
 "Authentication successful." and the tool exits.  You should now have
