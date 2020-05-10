@@ -1,6 +1,6 @@
-#! /usr/bin/env python2
+#! /usr/bin/env python3
 #
-# Copyright 2018 Quentin Barnes
+# Copyright 2018,2020 Quentin Barnes
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,14 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-# Can't use python3 since no google api client python package available for it.
-#
 
 """
 Download gmail messages tagged with a label into a Maildir directory.
 """
-
-from __future__ import print_function
 
 import sys
 import os
@@ -187,9 +183,9 @@ def gmail2maildir(args):
         msg = service_ro.users().messages().get(userId=args.user_id,\
                 id=msg_id,format='raw').execute()
 
-        fo = open(str(mailfn_tmp), "wx")
+        fo = open(str(mailfn_tmp), "x")
         fo.write(base64.urlsafe_b64decode(\
-                msg['raw'].encode('ASCII')).replace('\r', ''))
+                msg['raw'].encode('ASCII')).decode('utf-8').replace('\r', ''))
         fo.close()
         mailfn_tmp.rename(mailfn_new)
 
