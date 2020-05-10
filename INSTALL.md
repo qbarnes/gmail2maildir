@@ -42,9 +42,17 @@ To create the `client_secret.json` file:
 
 1. On the "Credentials" page, select the "OAuth consent screen" tab.
 
-   * Select an email address.
+   * Select "Application type" as "Public"
 
-   * For "Product name shown to users", enter "gmail2maildir".
+   * For "Application name", enter "gmail2maildir".
+
+   * For "support email" select your email address.
+
+   * Under "Scopes for Google APIs", add:
+
+      * "../auth/gmail.modify"
+
+      * "../auth/gmail.readonly"
 
    * Click "Save"
 
