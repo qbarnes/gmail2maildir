@@ -3,15 +3,33 @@
 
 ## Environment
 
-So far `gmail2maildir` has only been tested on RHEL 7.  Other OSes
-to be supported later.
+The `gmail2maildir` tool has been tested on CentOS/RHEL 7 & 8 and on
+Fedora 33.  If you have suggestions for supporting other OSes, please
+file a pull request.
 
-The `gmail2maildir` tool requires the following packages for RHEL 7
-to be installed:
-
+The `gmail2maildir` tool requires the following packages to be
+installed for Fedora 33:
 ```
-python-pathlib
-python2-google-api-client
+   python3
+   python3-google-api-client
+```
+
+
+For RHEL/CentOS 8, use
+[EPEL](https://fedoraproject.org/wiki/EPEL) and install:
+```
+   python3
+   python3-google-api-client
+```
+(Note: RHEL 8 instructions incomplete and untested, possibly
+due to EPEL module trouble.)
+
+
+For RHEL/CentOS 7, use
+[EPEL](https://fedoraproject.org/wiki/EPEL) and install:
+```
+   python3
+   python36-google-api-client
 ```
 
 
