@@ -55,17 +55,6 @@ def verbose_eprint(*args, **kwargs):
         print(*args, file=sys.stderr, **kwargs)
 
 
-# Can't use exist_ok arg for Path.mkdir.  Only added in v3.
-def mkdir_exists_ok(path, mode, parents):
-    try:
-        path.mkdir(mode, parents)
-    except OSError as e:
-        if e.errno == errno.EEXIST:
-            pass
-        else:
-            exit("mkdir of '%s' failed." % path)
-
-
 def SetupArgParser(app_config_dir, maildir_path):
     # Usage message is the module's docstring.
     parser = argparse.ArgumentParser(description=__doc__)
@@ -235,9 +224,9 @@ def main(argv):
     maildir_new = args.maildir / 'new'
     maildir_cur = args.maildir / 'cur'
 
-    mkdir_exists_ok(maildir_tmp, 0o700, True)
-    mkdir_exists_ok(maildir_new, 0o700, True)
-    mkdir_exists_ok(maildir_cur, 0o700, True)
+    os.makedirs(maildir_tmp, 0o700, True)
+    os.makedirs(maildir_new, 0o700, True)
+    os.makedirs(maildir_cur, 0o700, True)
 
 #    print('app_config_path = %s' % app_config_dir)
 #    print('maildir_top = %s' % args.maildir)
